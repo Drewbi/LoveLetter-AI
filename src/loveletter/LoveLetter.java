@@ -65,6 +65,7 @@ System.out.println("Player "+gameState.nextPlayer()+" draws the "+topCard);
           catch(IllegalActionException e){
             ps.println("ILLEGAL ACTION PERFORMED BY PLAYER "+agents[gameState.nextPlayer()]+
               "("+gameState.nextPlayer()+")\nRandom Move Substituted");
+            rando.newRound(gameState.playerState(gameState.nextPlayer()));
             act = rando.playCard(topCard);
           }
           for(int p = 0; p<numPlayers; p++)
