@@ -52,29 +52,35 @@ public class GodV1 implements Agent{
   public Action playCard(Card c){
     Action act = null;
     Card play;
-    if(c.toString() == "Handmaid") {
-      play = c;
+    Card card1 = c;
+    Card card2 = current.getCard(myIndex);
+    if(card1.toString() == "Handmaid") {
+      play = card1;
       System.out.println("PLAYING HANDMAID");
-    } else if(c.toString() == "Princess"){
+    } else if(card1.toString() == "Princess"){
       play = current.getCard(myIndex);
     } else if(current.getCard(myIndex).toString() == "Princess"){
-      play = c;
+      play = card1;
+    } else if(card1.toString() == "Countess" && card2.toString() == "Prince" || card2.toString() == "King"){
+      play = card1;
+    } else if(card2.toString() == "Countess" && card1.toString() == "Prince" || card1.toString() == "King"){
+      play = card2;
     }
     else play = c.value() < current.getCard(myIndex).value() ? c : current.getCard(myIndex);
     int target = rand.nextInt(current.numPlayers());
     while(current.eliminated(target) || target == myIndex){
-      System.out.println("Target " +  target + "is eliminated");
       target = rand.nextInt(current.numPlayers());
     }
     act = getAction(play, target);
     if(!current.legalAction(act, c)){
       System.out.println("Action: " + act +  " is not valid");
+      System.out.println("Hand is " + card1 + " and " + card2);
       if(play != Card.PRINCE){
         act = playCard(c);
       } else {
         for(int i = 3; i <= 0; i++){
           act = getAction(play, target);
-          if(!current.legalAction(act, c)) break;
+          if(current.legalAction(act, c)) break;
         }
       }
     }
