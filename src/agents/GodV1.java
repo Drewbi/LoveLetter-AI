@@ -11,6 +11,7 @@ public class GodV1 implements Agent{
   private Random rand;
   private State current;
   private int myIndex;
+  private Players probabilities;
 
   //0 place default constructor
   public GodV1(){
@@ -30,6 +31,8 @@ public class GodV1 implements Agent{
   public void newRound(State start){
     current = start;
     myIndex = current.getPlayerIndex();
+    probabilities = new Players(myIndex);
+    probabilities.updateProbabilities();
   }
 
   /**
@@ -137,9 +140,30 @@ class Players {
   private double[][] cardProbabilities;
   private int[] cardsUnseen;
   private int[] playerNumbers;
-  public Players(){
+  public Players(int myIndex){
     cardProbabilities = new double[3][8];
     cardsUnseen = new int[]{5, 2, 2, 2, 2, 1, 1, 1};
+    playerNumbers = new int[3];
+    int count = 0;
+    for(int i = 0; i < 4; i++){
+      if(i != myIndex && count < 3) {
+        playerNumbers[count] = i;
+        count++;
+      }
+    }
+
   }
-  
+
+  public void updateProbabilities(){
+    int totalUnseenCards = 0;
+    for(int cardType : cardsUnseen){
+      totalUnseenCards += cardType;
+    }
+    for(int i = 0; i < cardsUnseen.length; i++){
+      for(int j = 0; j < cardProbabilities.length; j++){
+        cardProbabilities[j][i] = (double) cardsUnseen[i]/(double) totalUnseenCards;
+      }
+    }
+    System.out.println(Arrays.deepToString(cardProbabilities));
+  }
 }
