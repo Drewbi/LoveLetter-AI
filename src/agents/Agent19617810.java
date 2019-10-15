@@ -2,25 +2,41 @@ package agents;
 import loveletter.*;
 import java.util.Random;
 
+
+class AleatoricPolicy{
+
+  //recursive data structure for representing an aleatoric formula
+  //has static methods for mutation and crossover.
+  //has static methods for selection (tournament?)
+  //Types are properties (aleatoric)
+  //or ite combinations
+  //Properties are enumerations? wtf not. 
+
+}
+
+
+
+
+
 /**
  * An interface for representing an agent in the game Love Letter
  * All agent's must have a 0 parameter constructor
  * */
-public class RandomAgent implements Agent{
+public class Agent19617810 implements Agent{
 
   private Random rand;
   private State current;
   private int myIndex;
 
   //0 place default constructor
-  public RandomAgent(){
+  public Agent19617810(){
     rand  = new Random();
   }
 
   /**
    * Reports the agents name
    * */
-  public String toString(){return "Rando";}
+  public String toString(){return "Aleator";}
 
 
   /**

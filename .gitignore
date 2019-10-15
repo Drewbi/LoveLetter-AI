@@ -1,5 +1,5 @@
 bin/*
 doc/*
-#add your agent src files here so you don't accidently share them with everyone
-src/agents/youragent.java
 .vscode
+src/agents/Agent19617810.java
+
