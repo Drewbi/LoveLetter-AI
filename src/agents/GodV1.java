@@ -11,13 +11,10 @@ public class GodV1 implements Agent{
   private Random rand;
   private State current;
   private int myIndex;
-  private double[][] players;
 
   //0 place default constructor
   public GodV1(){
     rand  = new Random();
-    players = new double[4][8];
-    System.out.println(Arrays.deepToString(players));
   }
 
   /**
@@ -136,4 +133,13 @@ public class GodV1 implements Agent{
 
 }
 
-
+class Players {
+  private double[][] cardProbabilities;
+  private int[] cardsUnseen;
+  private int[] playerNumbers;
+  public Players(){
+    cardProbabilities = new double[3][8];
+    cardsUnseen = new int[]{5, 2, 2, 2, 2, 1, 1, 1};
+  }
+  
+}
