@@ -2,6 +2,7 @@ package loveletter;
 import java.util.Random;
 import java.io.PrintStream;
 import agents.RandomAgent;
+// import jdk.internal.agent.resources.agent;
 import agents.GodV1;
 
 
@@ -91,13 +92,19 @@ System.out.println("New Round, scores are:\nplayer 0:"+gameState.score(0)+"\npla
    * The agent implementations should be in the default package.
    * */
   public static void main(String[] args){
+    int totalGames = 1;
+    int totalWins = 0;
     Agent[] agents = {new GodV1(), new RandomAgent(), new RandomAgent(), new RandomAgent()};
-    LoveLetter env = new LoveLetter();
-    StringBuffer log = new StringBuffer("A simple game for four random agents:\n");
-    int[] results = env.playGame(agents);
-    env.ps.print("The final scores are:\n");
-    for(int i= 0; i<agents.length; i++)
-      env.ps.print("\t Agent "+i+", \""+agents[i]+"\":\t "+results[i]+"\n");
+    for(int i = 0; i<totalGames; i++){
+      LoveLetter env = new LoveLetter();
+      int[] results = env.playGame(agents);
+      if(results[0] == 4) totalWins++;
+    }
+    System.out.println("Total wins for " + agents[0] + " are " + totalWins);
+    System.out.println(agents[0] + " wins " + ((double) totalWins / (double) totalGames) * 100 + "% of the time");
+  //   env.ps.print("The final scores are:\n");
+  //   for(int i= 0; i<agents.length; i++)
+  //     env.ps.print("\t Agent "+i+", \""+agents[i]+"\":\t "+results[i]+"\n");
   }
 }
 

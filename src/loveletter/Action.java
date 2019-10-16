@@ -58,6 +58,7 @@ public class Action{
    * @return a string representation of the action
    * **/
   public String toString(String player, String target){
+    // return "";
     String str = "Player "+player+" played the "+card; 
     switch(card){
       case GUARD: return str+" and guessed player "+target+" held the "+guess+".";
