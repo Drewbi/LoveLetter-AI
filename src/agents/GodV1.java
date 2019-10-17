@@ -168,14 +168,12 @@ class CardCount {
   private int[] cardsUnseen;
   private int[] playerNumbers;
   private int[] knownCards;
-  private int[] ownCards;
 
   public CardCount(int myIndex){
     cardProbabilities = new double[3][8];
     cardsUnseen = new int[]{5, 2, 2, 2, 2, 1, 1, 1};
     playerNumbers = new int[3];
     knownCards = new int[3];
-    ownCards = new int[2];
     int count = 0;
     for(int i = 0; i < 4; i++){
       if(i != myIndex && count < 3) {
@@ -207,8 +205,6 @@ class CardCount {
         cardProbabilities[i][known - 1] = 1;
       }
     }
-    System.out.println(Arrays.toString(cardsUnseen));
-    System.out.println(Arrays.deepToString(cardProbabilities));
   }
 
   public void updateOwn(int card){
@@ -223,7 +219,7 @@ class CardCount {
 
   public void discardKnown(int player){
     int playerIndex = getPlayerIndex(player);
-    knownCards[playerIndex] = 0;
+    if(playerIndex != -1) knownCards[playerIndex] = 0;
   }
 
   public void updateUnseen(Card[] unseen){
@@ -236,6 +232,7 @@ class CardCount {
   public void playerEliminated(int player){
     int playerIndex = getPlayerIndex(player);
     if(playerIndex != -1){
+      knownCards[playerIndex] = 0;
       playerNumbers[playerIndex] = -1;
       for(int i = 0; i < 8; i++){
         cardProbabilities[playerIndex][i] = 0;
@@ -247,7 +244,6 @@ class CardCount {
     for(int i = 0; i < 3; i++){
       if(playerNum == playerNumbers[i]) return i;
     }
-    System.out.println("NO PLAYER FOUND");
     return -1;
   }
 
@@ -274,8 +270,6 @@ class CardCount {
         }
       }
     }
-    System.out.println(Arrays.toString(playerNumbers));
-    System.out.println(Arrays.toString(protectedPlayers));
     if(bestTarget == -1){
       System.out.println("No unprotected players");
       for(int i = 0; i < 3; i++){
@@ -292,12 +286,6 @@ class CardCount {
     int[] bestGuess = new int[2];
     bestGuess[0] = playerNumbers[bestTarget];
     bestGuess[1] = bestCard;
-    // System.out.println(Arrays.toString(cardProbabilities[bestTarget]));
-    // System.out.println(Arrays.toString(protectedPlayers));
     return bestGuess;
-  }
-
-  private void printCardProbabilities(){
-    System.out.println(Arrays.deepToString(cardProbabilities));
   }
 }
