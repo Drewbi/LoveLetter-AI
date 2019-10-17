@@ -56,9 +56,9 @@ public class LoveLetter{
           agents[i].newRound(playerStates[i]);
         }
         while(!gameState.roundOver()){
-System.out.println("Cards are:\nplayer 0:"+gameState.getCard(0)+"\nplayer 1:"+gameState.getCard(1)+"\nplayer 2:"+gameState.getCard(2)+"\nplayer 3:"+gameState.getCard(3));        
+// System.out.println("Cards are:\nplayer 0:"+gameState.getCard(0)+"\nplayer 1:"+gameState.getCard(1)+"\nplayer 2:"+gameState.getCard(2)+"\nplayer 3:"+gameState.getCard(3));        
           Card topCard = gameState.drawCard(); 
-System.out.println("Player "+gameState.nextPlayer()+" draws the "+topCard);
+// System.out.println("Player "+gameState.nextPlayer()+" draws the "+topCard);
           Action act = agents[gameState.nextPlayer()].playCard(topCard);
           try{
             ps.println(gameState.update(act,topCard));
@@ -92,7 +92,7 @@ System.out.println("New Round, scores are:\nplayer 0:"+gameState.score(0)+"\npla
    * The agent implementations should be in the default package.
    * */
   public static void main(String[] args){
-    int totalGames = 1;
+    int totalGames = 5000;
     int totalWins = 0;
     Agent[] agents = {new GodV1(), new RandomAgent(), new RandomAgent(), new RandomAgent()};
     for(int i = 0; i<totalGames; i++){
