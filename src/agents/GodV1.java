@@ -81,8 +81,12 @@ public class GodV1 implements Agent{
     }
     else play = c.value() < current.getCard(myIndex).value() ? c : current.getCard(myIndex);
     int target = rand.nextInt(4);
-    while(current.eliminated(target) || target == myIndex){
-      target = rand.nextInt(4);
+    if(current.handmaid(target) || current.eliminated(target) || target == myIndex){
+      for(int i = 0; i < 4; i++){
+        if(!current.handmaid(i) && !current.eliminated(i) || i != myIndex){
+          target = i;
+        }
+      }
     }
     act = getAction(play, target);
     if(!current.legalAction(act, c)){
@@ -112,37 +116,57 @@ public class GodV1 implements Agent{
    * @throws IllegalActionException when the Action produced is not legal.
    */
   private Action getAction(Card play, int target){
-    // System.out.println("Getting Action " + play + " At Target " + target);
     Action act = null;
     try{
       switch(play){
         case GUARD:
-          // System.out.println(Arrays.toString(current.unseenCards()));
           int[] protectedPlayers = new int[3];
           int count = 0;
           for(int i = 0; i < 4; i++){
             if(i == myIndex) continue;
             if(current.handmaid(i)) {
                protectedPlayers[count] = i;
-              // System.out.println("Player " + i + " is protected");
             }
             else protectedPlayers[count] = -1;
             count++;
           }
           int[] guess = probabilities.bestGuardGuess(protectedPlayers);
-          System.out.println(Arrays.toString(guess));
           act = Action.playGuard(myIndex, guess[0], Card.values()[guess[1]]);
           break;
         case PRIEST:
+          if(probabilities.cardKnown(target) || current.handmaid(target)) {
+            for(int i = 0; i < 4; i++) {
+              if(!current.eliminated(i) && !current.handmaid(i) && i != myIndex) {
+                if(!probabilities.cardKnown(i)) {
+                  target = i;
+                }
+              }
+            }
+          }
+          System.out.println("Priest ---------------------------------------");
           act = Action.playPriest(myIndex, target);
           break;
-        case BARON:  
+        case BARON:
+          
           act = Action.playBaron(myIndex, target);
           break;
         case HANDMAID:
           act = Action.playHandmaid(myIndex);
           break;
         case PRINCE:  
+          if(current.handmaid(target)){
+            int maxTarget = -1;
+            int maxCard = 0;
+            for(int i = 0; i < 4; i++) {
+              if(!current.eliminated(i) && !current.handmaid(i) && i != myIndex) {
+                if(probabilities.knownCards[i] >= maxCard) {
+                  maxTarget = i;
+                }
+              }
+            }
+            target = maxTarget;
+          } // Maybe add self targeting in some situation :/
+          if(target == -1) target = myIndex;
           act = Action.playPrince(myIndex, target);
           break;
         case KING:
@@ -167,7 +191,7 @@ class CardCount {
   private double[][] cardProbabilities;
   private int[] cardsUnseen;
   private int[] playerNumbers;
-  private int[] knownCards;
+  public int[] knownCards;
 
   public CardCount(int myIndex){
     cardProbabilities = new double[3][8];
@@ -215,6 +239,12 @@ class CardCount {
     int playerIndex = getPlayerIndex(player);
     knownCards[playerIndex] = card;
     cardsUnseen[card - 1]--;
+  }
+
+  public Boolean cardKnown(int player){
+    int playerIndex = getPlayerIndex(player);
+    System.out.println(Arrays.toString(knownCards));
+    return knownCards[playerIndex] != 0;
   }
 
   public void discardKnown(int player){
@@ -271,18 +301,14 @@ class CardCount {
       }
     }
     if(bestTarget == -1){
-      System.out.println("No unprotected players");
       for(int i = 0; i < 3; i++){
         if(playerNumbers[i] != -1) {
           bestTarget = i;
           bestCard = 7;
-          System.out.println(playerNumbers[i]);
-          System.out.println(i);
           break;
         }
       }
     }
-    System.out.println(bestTarget);
     int[] bestGuess = new int[2];
     bestGuess[0] = playerNumbers[bestTarget];
     bestGuess[1] = bestCard;
