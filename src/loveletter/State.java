@@ -283,6 +283,13 @@ public class State implements Cloneable{
       return "\nPlayer "+name(t)+" is protected by the Handmaid.";
     known[a][t]=true;
     known[t][a]=true;
+    for(int p =0; p<num;p++){ 
+      if(p!=t && p!=a){
+        boolean tmp = known[p][t];
+        known[p][t] = known[p][a];
+        known[p][a] = tmp;
+      }
+    }
     Card tmp = hand[a];
     hand[a] = hand[t];
     hand[t] = tmp;
@@ -369,8 +376,13 @@ public class State implements Cloneable{
     return handmaid[player];
   }
 
-  //helper method to check if every other player is protected by the handmaid
-  private boolean allHandmaid(int player){
+  /**
+   * helper method to check if every other player other than the specified player is either eliminated or protected by the handmaid
+   * @param player the player who would be playing a card
+   * @return true if and only if every player other than the nominated player is eliminated or prtoected by the handmaid
+   * @throws ArrayIndexoutOfBoundsException if the playerIndex is out of range.
+   * **/
+  public boolean allHandmaid(int player){
     boolean noAction = true;
     for(int i = 0; i<num; i++)
       noAction = noAction && (eliminated(i) || handmaid[i] || i==player); 
