@@ -83,8 +83,13 @@ public class GodV1 implements Agent{
     int target = rand.nextInt(4);
     if(current.handmaid(target) || current.eliminated(target) || target == myIndex){
       for(int i = 0; i < 4; i++){
-        if(!current.handmaid(i) && !current.eliminated(i) || i != myIndex){
+        System.out.println("Trying " + i);
+        if(!current.handmaid(i) && !current.eliminated(i) && i != myIndex){
           target = i;
+          break;
+        } else {
+          if(play.toString() == "Baron" && current.handmaid(i)) target = i;
+          else if(play.toString() == "Prince") target = myIndex;
         }
       }
     }
@@ -244,6 +249,7 @@ class CardCount {
   public Boolean cardKnown(int player){
     int playerIndex = getPlayerIndex(player);
     System.out.println(Arrays.toString(knownCards));
+    if(playerIndex == -1) return false;
     return knownCards[playerIndex] != 0;
   }
 
