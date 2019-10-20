@@ -1,4 +1,5 @@
 package loveletter;
+import java.util.Arrays;
 
 /**This class represents the observable state of the game.
  * The class comes in two modes, one for the players, which has update operations disabled,
@@ -41,6 +42,19 @@ public class State implements Cloneable{
       newRound();
     }catch(IllegalActionException e){/*unreachable code, do nothing*/}
     nextPlayer=new int[1];
+  }
+
+
+  public void displayState(){
+    System.out.println("discards: " + Arrays.deepToString(discards));
+    System.out.println("discardCount: " + Arrays.toString(discardCount));
+    System.out.println("hand: " + Arrays.toString(hand));
+    System.out.println("deck: " + Arrays.toString(deck));
+    System.out.println("top: " + Arrays.toString(top));
+    System.out.println("known: " + Arrays.deepToString(known));
+    System.out.println("handmaid: " + Arrays.toString(handmaid));
+    System.out.println("nextPlayer: " + Arrays.toString(nextPlayer));
+    System.out.println("agents: " + Arrays.toString(agents));
   }
 
   /**
