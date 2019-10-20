@@ -2,8 +2,8 @@ package loveletter;
 import java.util.Random;
 import java.io.PrintStream;
 import agents.RandomAgent;
-// import jdk.internal.agent.resources.agent;
 import agents.GodV1;
+import agents.GodV2;
 
 
 /**
@@ -30,7 +30,7 @@ public class LoveLetter{
 
   /**
    * Constructs a LoveLetter game.
-   * Defauklt construct with system random seed, and System.out as the PrintStream
+   * Default construct with system random seed, and System.out as the PrintStream
    * **/
   public LoveLetter(){
     this(0,System.out);
@@ -92,9 +92,9 @@ System.out.println("New Round, scores are:\nplayer 0:"+gameState.score(0)+"\npla
    * The agent implementations should be in the default package.
    * */
   public static void main(String[] args){
-    int totalGames = 5000;
+    int totalGames = 1;
     int totalWins = 0;
-    Agent[] agents = {new GodV1(), new RandomAgent(), new RandomAgent(), new RandomAgent()};
+    Agent[] agents = {new GodV2(), new GodV1(), new RandomAgent(), new RandomAgent()};
     for(int i = 0; i<totalGames; i++){
       LoveLetter env = new LoveLetter();
       int[] results = env.playGame(agents);
