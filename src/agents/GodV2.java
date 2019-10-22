@@ -8,15 +8,14 @@ import java.lang.Math;
 
 /**
  * Monte Carlo Tree Search Agent
+ * Uses code from the provided game source but
+ * adapted to provide constructable states partway through a game
  * */
 public class GodV2 implements Agent{
-  private Random random;
   private State current;
   private int myIndex;
-  private int seed = 25; // Remove for random deck generation
 
   public GodV2(){
-    random  = new Random(seed);
     System.out.println("Initialising GodV2");
   }
 
@@ -35,59 +34,64 @@ public class GodV2 implements Agent{
     MCTS monte;
     Action act;
     try {
-      monte = new MCTS(10, 5.5, current);
+      monte = new MCTS(10, 1000, 200, current, c, myIndex);
       MCTSNode bestNode = monte.ISMCTS();
+      System.out.println(bestNode.getTries());
+      System.out.println(bestNode.getWins());
+      System.out.println(bestNode.getAction());
       act = bestNode.getAction();
     } catch(IllegalActionException e){
       System.out.println("Something went very wrong, oh no..." + e);
       RandomAgent randSub = new RandomAgent();
       randSub.newRound(current);
-      act = randSub.playCard(c); // Get random card for testing
+      act = randSub.playCard(c); // I subsitute actions for you
     }
     return act;
   }
 }
 
+/**
+ * Nodes for use in the Monte Carlo tree search
+ */
 class MCTSNode {
   private MCTSNode parent;
-  private MCTSNode[] children;
-  private PseudoState lastDeterminisation;
-  private int callingPlayerindex;
-  private int depth;
-  private double prob;
-  private Action act;
-  private int wins;
-  private int tries;
-  private int availablility;
-  private Boolean leaf;
+  private MCTSNode[] children; 
+  private PseudoState determinisation; // Randomly generated state for use with a single nodd
+  private int depth; // Current depth of node
+  private Action act; // Action associated with arriving at this node
+  private int wins; // Number of wins backpropagated through this node
+  private int tries; // Number of simulations backpropagated through this node
+  private int availablility; // Number of times this node has been considered for selection
+  private boolean leaf; // Whether this node is terminal
 
+  // Construct a node
   public MCTSNode(int depth, int maxDepth, MCTSNode parent, PseudoState state, Action act){
     this.depth = depth;
     this.parent = parent;
-    this.lastDeterminisation = state;
+    determinisation = state;
     this.act = act;
     children = new MCTSNode[8];
     leaf = state.roundOver() || depth == maxDepth;
   }
- // Construct root node
+
+ // Construct a root node
   public MCTSNode(PseudoState state){
     depth = 0;
     parent = null;
     act = null;
-    this.lastDeterminisation = state;
+    determinisation = state;
     children = new MCTSNode[8];
     leaf = false;
   }
 
-  public int getPlayer(){
-    int num = (depth + callingPlayerindex) % 4;
-    while(lastDeterminisation.eliminated(num)) num = (num + 1) % 4;
-    return num;
-  }
+  // Methods to access object fields
+  public int getPlayer(){return determinisation.nextPlayer();}
+
+  public PseudoState getDeterm(){return determinisation;}
 
   public MCTSNode getParent(){return parent;}
 
-  public Boolean isLeaf(){return leaf;}
+  public boolean isLeaf(){return leaf;}
 
   public Action getAction(){return act;}
   
@@ -99,42 +103,44 @@ class MCTSNode {
 
   public int getDepth(){return depth;}
 
-  public void seen(){
-    availablility++;
-  }
+  public void seen(){ availablility++;}
 
-  public MCTSNode createChild(Action act, int maxDepth) throws Exception {
+  // Creates a child node by cloning a state and using it to generate a node one level down
+  public MCTSNode createChild(Action act, int maxDepth) throws IllegalActionException {
     PseudoState expanded;
-    expanded = lastDeterminisation.expand(act, PseudoCard.convertToPseudoCard(act.card()));
+    expanded = determinisation.expand(act, determinisation.getNewCard());
     MCTSNode child = new MCTSNode(depth + 1, maxDepth, this, expanded, act);
     int cardVal = act.card().value();
     children[cardVal - 1] = child;
     return child;
   }
 
-  public Boolean hasChild(int cardVal){
-    return children[cardVal - 1] == null;
+  public boolean hasChild(int cardVal){
+    return children[cardVal - 1] != null;
   }
 
   public MCTSNode getChild(int cardVal){
     return children[cardVal - 1];
   }
 
-
+  // Potential method for simulating multiple playouts for potentially better 
+  // consistency at a cost of perfomance
   public int simulateMulti(int numSimulations, int playerIndex){
     int wins = 0;
     for(int i = 0; i < numSimulations; i++) {
-      if(lastDeterminisation.playOut(playerIndex)) wins++;
+      if(determinisation.playOut(playerIndex)) wins++;
     }
     if((double) wins / (double) numSimulations < 0.5) return 0;
     else return 1;
   }
 
+  // Play out the state at a given node and have it return if the player won or not
   public int simulate(int playerIndex){
-    if(lastDeterminisation.playOut(playerIndex)) return 1;
+    if(determinisation.playOut(playerIndex)) return 1;
     else return 0;
   }
 
+  // Work up the tree of nodes adding one to the attempts and if applicable the wins
   public void backProp(int win){
     MCTSNode current = parent;
     current.wins += win;
@@ -145,73 +151,98 @@ class MCTSNode {
   }
 }
 
+// Class for running the monte carlo search
 class MCTS {
   private MCTSNode root;
-  private MCTSNode current;
-  private State startState;
-  private PseudoState currentDeterm;
   private int maxDepth;
+  private int maxIterations;
   private double expConst;
+  private int playerIndex;
 
-  public MCTS(int maxDepth, double expConst, State startState){
+  // Construct the tree search with variable constants like depth, iterations and exploration constant
+  public MCTS(int maxDepth, int maxIterations, double expConst, State startState, Card c, int playerIndex){
     this.maxDepth = maxDepth;
     this.expConst = expConst;
-    this.startState = startState;
-    currentDeterm = new PseudoState(startState);
-    root = new MCTSNode(currentDeterm);
-    current = root;
+    this.playerIndex = playerIndex;
+    this.maxIterations = maxIterations;
+    PseudoState startDeterm = new PseudoState(startState, c);
+    root = new MCTSNode(startDeterm);
   }
 
+  // Runs the Information set monte carlo tree search
   public MCTSNode ISMCTS() throws IllegalActionException {
-    long startTime = System.currentTimeMillis();
-    while (System.currentTimeMillis() - startTime < 1000*59){
-      currentDeterm = new PseudoState(startState);
+    System.out.println("ISMCTS starting timer");
+    int numIterations = 0;
+    while (numIterations < maxIterations){
       MCTSNode selectedNode;
       try {
+        System.out.println("ISMCTS Selecting node");
         selectedNode = select();
       } catch (IllegalActionException e) {
         throw e;
       }
-      int win = selectedNode.simulate(startState.getPlayerIndex());
+      System.out.println("ISMCTS selected node successfully:");
+      int win = selectedNode.simulate(playerIndex);
+      System.out.println("ISMCTS node resulted in " + win + " wins");
       selectedNode.backProp(win);
+      System.out.println("ISMCTS Node has backpropagated");
+      numIterations++;
     }
-    long endTime = System.currentTimeMillis();
-    System.out.println("ISMCTS Finished in " + (endTime - startTime) + "ms");
     int maxTries = 0;
     int bestChild = -1;
     for(int i = 1; i <= 8; i ++){
       if(root.hasChild(i)) {
         int childTries = root.getChild(i).getTries();
-        if(childTries > maxTries) {
+        if(childTries >= maxTries) {
           maxTries = childTries;
           bestChild = i;
         }
+        System.out.println("Child " + i + " tried " + childTries);
       }
     }
     if(bestChild == -1) System.out.println("No child found");
     return root.getChild(bestChild);
   }
 
+  // Works down the tree based on the principles of the monte carlo tree search
   private MCTSNode select() throws IllegalActionException {
+    System.out.println("Select: starting selection");
+    System.out.println("Current leaf at depth " + root.getDepth() + " and player to move " + root.getDeterm().nextPlayer());
+    MCTSNode current = root;
     while (!current.isLeaf()){
-      PseudoCard card1 = currentDeterm.drawCard();
+      PseudoState currentDeterm = current.getDeterm().cloneState();
+
+      // Get the current players hand
+      PseudoCard card1 = currentDeterm.getNewCard();
       PseudoCard card2 = currentDeterm.getCard(current.getPlayer());
-      PseudoAgent currentPlayer = currentDeterm.getPlayer(current.getPlayer());
+      
+      // Get the agent from state
+      int currentPlayerIndex = current.getPlayer();
+      PseudoAgent currentPlayer = currentDeterm.getPlayer(currentPlayerIndex);
+      
+      // Pick one of the cards to try first
       PseudoCard playFirst = currentPlayer.pickRandomCard(card1, card2);
       PseudoCard playSecond = playFirst == card1 ? card2 : card1;
+      
+      // Generate a player state to use to pick a card
+      PseudoState playerState = currentDeterm.playerState(currentPlayerIndex);
+      currentPlayer.newRound(playerState);
+
       Action act1 = currentPlayer.playCard(playFirst);
       Action act2 = currentPlayer.playCard(playSecond);
-      if(!current.hasChild(act1.card().value())){
+      System.out.println(act1 + "|" + act2);
+      if(act1 == null & act2 == null) throw new IllegalActionException("Both actions are illegal: " + act1 + "|" + act2);
+      if(act1 != null && !current.hasChild(act1.card().value())){
         try {
           return current.createChild(act1, maxDepth);
-        } catch(Exception e){
-          System.out.println("Creating child failed: " + e);
+        } catch(IllegalActionException e){
+          throw e;
         }
-      } else if(!current.hasChild(act2.card().value())){
+      } else if(act2 != null && !current.hasChild(act2.card().value())){
         try {
           return current.createChild(act2, maxDepth);
-        } catch(Exception e){
-          System.out.println("Creating child failed: " + e);
+        } catch(IllegalActionException e){
+          throw e;
         }
       } else {
         int[] cardVals = {card1.value(), card2.value()};
@@ -220,7 +251,7 @@ class MCTS {
         }
         current = pickISUCT(current.getChild(cardVals[0]), current.getChild(cardVals[1]));
         try {
-          currentDeterm = currentDeterm.expand(current.getAction(), card1);
+          currentDeterm = currentDeterm.expand(current.getAction(), current.getDeterm().getNewCard());
         } catch (IllegalActionException e) {
           throw e;
         }
@@ -229,12 +260,14 @@ class MCTS {
     return current;
   }
 
+  // Choose nodes based on the ISUCT algorithm
   private MCTSNode pickISUCT(MCTSNode node1, MCTSNode node2){
     double node1Score = ISUCT(node1.getWins(), node1.getTries(), node1.getAvailable());
     double node2Score = ISUCT(node2.getWins(), node2.getTries(), node2.getAvailable());
     return node1Score > node2Score ? node1 : node2;
   }
 
+  // Actual ISUCT formula
   private double ISUCT(int wins, int tries, int avail){
     return ((double) wins / (double) tries) + (expConst * Math.sqrt(((2 * Math.log((double) avail)) / (double) avail)));
   }
@@ -242,9 +275,7 @@ class MCTS {
 
 }
 
-class PseudoState implements Cloneable{
-
-//           _____    _          _        
+//            _____   _          _        
 //          / ____| | |        | |       
 //         | (___  | |_  __ _ | |_  ___ 
 //         \___ \ | __|/ _` || __|/ _ \
@@ -252,6 +283,8 @@ class PseudoState implements Cloneable{
 //        |_____/ \__|\__,_| \__|\___|
 //                     
 //        Recycled from state class
+
+class PseudoState implements Cloneable{
 
   private int player;
   private int numPlayers;
@@ -262,15 +295,17 @@ class PseudoState implements Cloneable{
   private int[] top;
   private boolean[][] known;
   private boolean[] handmaid;
-  private Random random;
   private int[] nextPlayer;
   private PseudoAgent[] randomAgents;
+  private PseudoCard newCard;
 
-  public PseudoState(Random random, State startState, PseudoAgent[] randomAgents) {
+  public PseudoState(Random random, State startState, PseudoAgent[] randomAgents, Card c) {
+    newCard = PseudoCard.convertToPseudoCard(c);
     initRound(random, startState, randomAgents);
   }
 
-  public PseudoState(State startState) {
+  public PseudoState(State startState, Card c) {
+    newCard = PseudoCard.convertToPseudoCard(c);
     Random random = new Random();
     PseudoAgent[] randomAgents = {new PseudoAgent(), new PseudoAgent(), new PseudoAgent(), new PseudoAgent()};
     initRound(random, startState, randomAgents);
@@ -278,7 +313,6 @@ class PseudoState implements Cloneable{
 
   public void initRound(Random random, State startState, PseudoAgent[] randomAgents) {
     this.randomAgents = randomAgents;
-    this.random = random;
     player = -1;
     numPlayers = 4;
     PseudoCard[] discardsStack = new PseudoCard[16];
@@ -295,8 +329,11 @@ class PseudoState implements Cloneable{
         discardsStack[numDiscards] = convertedCard;
         j++;
         numDiscards++;
+        discardCount[i]++;
       }
     }
+    discardsStack[numDiscards++] = newCard;
+    discardsStack[numDiscards] = PseudoCard.convertToPseudoCard(startState.getCard(startState.nextPlayer()));
     top = new int[1];
     top[0] = numDiscards;
     deck = PseudoCard.constructDeck(random, discardsStack);
@@ -314,8 +351,20 @@ class PseudoState implements Cloneable{
     nextPlayer=new int[1];
   }
 
+  public void displayState(){
+    System.out.println("player: " + player);
+    System.out.println("discards: " + Arrays.deepToString(discards));
+    System.out.println("discardCount: " + Arrays.toString(discardCount));
+    System.out.println("hand: " + Arrays.toString(hand));
+    System.out.println("deck: " + Arrays.toString(deck));
+    System.out.println("top: " + Arrays.toString(top));
+    System.out.println("known: " + Arrays.deepToString(known));
+    System.out.println("handmaid: " + Arrays.toString(handmaid));
+    System.out.println("nextPlayer: " + Arrays.toString(nextPlayer));
+    System.out.println("Agents: " + Arrays.toString(randomAgents));
+  }
+
   public Boolean playOut(int playerIndex){
-    System.out.println("∆ Running sim");
     int winner=0;
     int numPlayers = 4;
     PseudoState gameState = cloneState();//the game state
@@ -328,11 +377,10 @@ class PseudoState implements Cloneable{
       }
       // Play the round
       while(!gameState.roundOver()){
-        System.out.println("∆ Starting sim round");
         PseudoCard topCard = gameState.drawCard(); 
         Action act = randomAgents[gameState.nextPlayer()].playRandomCard(topCard);
         try{
-          System.out.println("∆ " + gameState.update(act,topCard));
+          gameState.update(act,topCard);
         } catch(IllegalActionException e){ // Hopefully this shouldn't happen
         System.out.println(e);
         System.out.println("Stopping...");
@@ -340,7 +388,6 @@ class PseudoState implements Cloneable{
       for(int p = 0; p<numPlayers; p++) randomAgents[p].see(act,playerStates[p]);
     }
     winner = gameState.roundWinner();
-    System.out.println("∆ Player " + winner + " has won the round");
       return winner == playerIndex;
     }catch(IllegalActionException e){
       System.out.println("Something has gone wrong.");
@@ -349,7 +396,21 @@ class PseudoState implements Cloneable{
     }
   }
 
-  private PseudoState cloneState(){
+  @Override
+  protected Object clone() throws CloneNotSupportedException {
+    PseudoState cloned = (PseudoState)super.clone();
+    cloned.discards = (PseudoCard[][])cloned.discards.clone(); 
+    cloned.discardCount = (int[])cloned.discardCount.clone(); 
+    cloned.hand = (PseudoCard[])cloned.hand.clone(); 
+    cloned.deck = (PseudoCard[])cloned.deck.clone(); 
+    cloned.top = (int[])cloned.top.clone(); 
+    cloned.known = (boolean[][])cloned.known.clone(); 
+    cloned.handmaid = (boolean[])cloned.handmaid.clone(); 
+    cloned.nextPlayer = (int[])cloned.nextPlayer.clone(); 
+    return cloned;
+  }
+
+  public PseudoState cloneState(){
     try{
       PseudoState s = (PseudoState)this.clone();
       return s;
@@ -363,7 +424,7 @@ class PseudoState implements Cloneable{
     if(this.player!=-1) throw new IllegalActionException("Operation not permitted in player's state.");
     if(player<0 || numPlayers<=player) throw new IllegalArgumentException("Player out of range.");
     try{
-      PseudoState s = (PseudoState)this.clone();
+      PseudoState s = (PseudoState)super.clone();
       s.player = player;
       return s;
     }catch(CloneNotSupportedException e){
@@ -393,7 +454,10 @@ class PseudoState implements Cloneable{
     try{
       legalAction(act.player(), act.target(), PseudoCard.convertToPseudoCard(act.card()), drawn);
     }
-    catch(IllegalActionException e){return false;}
+    catch(IllegalActionException e){
+      System.out.println(e);
+      return false;
+    }
     return true;
   }
 
@@ -402,7 +466,7 @@ class PseudoState implements Cloneable{
   }
 
   public PseudoState expand(Action act, PseudoCard card) throws IllegalActionException {
-    PseudoState expanded = this.cloneState();
+    PseudoState expanded = cloneState();
     try {
       expanded.update(act, card);
     } catch (IllegalActionException e){
@@ -412,6 +476,9 @@ class PseudoState implements Cloneable{
   }
 
   public String update(Action act, PseudoCard card) throws IllegalActionException{
+    if(player!=-1){
+      throw new IllegalActionException("Operation not permitted in player's state.");
+    }
     int a = act.player();//actor
     int t = act.target();//target
     PseudoCard c = PseudoCard.convertToPseudoCard(act.card());
@@ -580,6 +647,8 @@ class PseudoState implements Cloneable{
     return randomAgents[playerIndex];
   }
 
+  public PseudoCard getNewCard(){ return newCard; }
+
   public boolean handmaid(int player){
     if(player<0 || player >=numPlayers) return false;
     return handmaid[player];
@@ -627,7 +696,6 @@ class PseudoState implements Cloneable{
   }
 }
 
-class PseudoAgent {
 
 //                                        _   
 //             /\                        | |  
@@ -638,17 +706,28 @@ class PseudoAgent {
 //                  __/ |                  
 //                 |___/                           
 
+class PseudoAgent {
 
-  private Random rand;
+  private Random random;
   private PseudoState current;
   private int agentIndex;
-  private Boolean[] availableTargets;
-
+  private boolean[] availableTargets;
+  private double[][] cardProb;
+  private boolean[] eliminated;
+  private int[] unseenCards;
 
   public PseudoAgent(){
-    rand  = new Random();
-    availableTargets = new Boolean[4];
+    random  = new Random();
+    availableTargets = new boolean[4];
+    cardProb = new double[4][8];
+    unseenCards = new int[]{5, 2, 2, 2, 2, 1, 1, 1};
+    eliminated = new boolean[4];
+    updateProbabilities();
+  }
 
+  public PseudoAgent(Random random){
+    this.random  = random;
+    availableTargets = new boolean[4];
   }
 
   public String toString(){return "NotSoRandom";}
@@ -656,11 +735,51 @@ class PseudoAgent {
   public void newRound(PseudoState start){
     current = start;
     agentIndex = current.getPlayerIndex();
+    updateKnown();
+    updateEliminated();
+    getAvailableTargets();
   }
 
   public void see(Action act, PseudoState results){
     current = results;
+    updateKnown();
+    updateEliminated();
     getAvailableTargets();
+  }
+
+  private void updateKnown(){
+    for(int i = 0; i < 4; i++){
+      if(i == agentIndex) continue;
+      PseudoCard card = current.getCard(i);
+      if(card != null && cardProb[i][card.value()-1] != 1.0){
+        for(int j = 0; j < 8; j++) cardProb[i][j] = 0.0;
+        cardProb[i][card.value()-1] = 1.0;
+        unseenCards[card.value()-1]--;
+      }
+    }
+  }
+
+  private void updateProbabilities(){
+    int totalUnseenCards = 0;
+    for(int i = 0; i < 8; i++){
+      totalUnseenCards += unseenCards[i];
+    }
+    for(int i = 0; i < 8; i++){
+      for(int j = 0; j < 4; j++){
+        if(j == agentIndex) continue;
+        cardProb[j][i] = (double)unseenCards[i] / (double)totalUnseenCards;
+      }
+    }
+  }
+
+  private void updateEliminated(){
+    for(int i = 0; i < 4; i++){
+      if(i == agentIndex) continue;
+      if(current.eliminated(i)){
+        for(int j = 0; j < 8; j++) cardProb[i][j] = 0.0;
+        eliminated[i] = true;
+      }
+    }
   }
 
   private void getAvailableTargets(){
@@ -670,8 +789,13 @@ class PseudoAgent {
     }
   }
 
+  private boolean targetsAvailable(){
+    for(int i = 0; i < 4; i++) if(availableTargets[i]) return true;
+    return false;
+  }
+
   public PseudoCard pickRandomCard(PseudoCard c, PseudoCard d){
-    if(rand.nextDouble() < 0.5) return c;
+    if(random.nextDouble() < 0.5) return c;
     else return d;
   }
 
@@ -685,88 +809,163 @@ class PseudoAgent {
         target = getBestPriestTarget();
         break;
       case BARON:  
-        target = getBestBaronTarget();
+        target = getBestBaronTarget(c.value());
         break;
       case PRINCE:  
         target = getBestPrinceTarget();
         break;
       case KING:
-        target = getBestKingTarget();
+        target = getBestKingTarget(c.value());
         break;
       default:
-        target = -1; // Princess, Handmaid and Countess don't target
+        target = 0; // Princess, Handmaid and Countess don't target
     }
     return target;
   }
 
-  private int getBestGuardTarget(){ // Change to Real thing!!
-    return tempTargetChooser();
+  private int getBestGuardTarget(){
+    return getBestGuardMove()[0];
+  }
+
+  private int getBestGuardCard(){
+    return getBestGuardMove()[1];
+  }
+
+  private int[] getBestGuardMove(){
+    int[] guess = new int[2];
+    double prob = 0;
+    for(int i = 0; i < 4; i++){
+      if(eliminated[i] || i == agentIndex || !availableTargets[i]) continue;
+      for(int j = 0; j < 8; j++){
+        if(cardProb[i][j] >= prob) {
+          prob = cardProb[i][j];
+          guess[0] = i;
+          guess[1] = j+1;
+        }
+      }
+    }
+    if(prob == 0 && !targetsAvailable()) guess[0] = (agentIndex + 1) % 4;
+    else if(prob == 0) for(int i = 0; i < 4; i++) if(availableTargets[i]) {
+      guess[0] = i;
+      guess[1] = 2;
+    }
+    return guess;
   }
 
   private int getBestPriestTarget(){
-    return tempTargetChooser();
+    int target = (agentIndex + 1) % 4;
+    double prob = 1;
+    for(int i = 0; i < 4; i++){
+      if(eliminated[i] || i == agentIndex || !availableTargets[i]) continue;
+      for(int j = 0; j < 8; j++){
+        if(cardProb[i][j] == 0) continue;
+        else if(cardProb[i][j] <= prob) target = i;
+      }
+    }
+    if(prob == 1 && !targetsAvailable()) target = (agentIndex + 1) % 4;
+    else if(prob == 1) for(int i = 0; i < 4; i++) if(availableTargets[i]) {
+      target = i;
+    }
+    return target;
   }
 
-  private int getBestBaronTarget(){
-    return tempTargetChooser();
+  private int getBestBaronTarget(int cardVal){
+    int target = (agentIndex + 1) % 4;
+    double prob = 0.6;
+    int lowestCard = 9;
+    for(int i = 0; i < 4; i++){
+      if(eliminated[i] || i == agentIndex || !availableTargets[i]) continue;
+      for(int j = 0; j < 8; j++){
+        if(cardProb[i][j] >= prob && j + 1 <= lowestCard) {
+          target = i;
+          lowestCard = j + 1;
+        }
+        else if(cardProb[i][j] == 1 && j + 1 < cardVal) {
+          target = i;
+          lowestCard = 0;
+        }
+      }
+    }
+    if(lowestCard == 9 && !targetsAvailable()) target = (agentIndex + 1) % 4;
+    else if(lowestCard == 9) for(int i = 0; i < 4; i++) if(availableTargets[i]) {
+      target = i;
+    }
+    return target;
   }
 
   private int getBestPrinceTarget(){
-    return tempTargetChooser();
-  }
-
-  private int getBestKingTarget(){
-    return tempTargetChooser();
-  }
-
-  private int tempTargetChooser(){ // Remove!!
-    int i = rand.nextInt(3);
-    int j = agentIndex;
-    while(i >= 0){
-      for(int k = 0; k < 4; k++){
-        if(availableTargets[k]){
-          j = k;
-          i--;
+     int target = agentIndex;
+    double prob = 0;
+    int highestCard = 0;
+    for(int i = 0; i < 4; i++){
+      if(eliminated[i] || i == agentIndex || !availableTargets[i]) continue;
+      for(int j = 0; j < 8; j++){
+        if(cardProb[i][j] >= prob && j + 1 >= highestCard) {
+          target = i;
+          highestCard = j + 1;
         }
-        if(i == 0) break;
       }
-      i--;
     }
-    return j;
+    if(highestCard == 0 && !targetsAvailable()) target = agentIndex;
+    else if(highestCard == 0) for(int i = 0; i < 4; i++) if(availableTargets[i]) {
+      target = i;
+    }
+    return target;
+  }
+
+  private int getBestKingTarget(int cardVal){
+    int target = (agentIndex + 1) % 4;
+    double prob = 0.6;
+    int highestCard = 0;
+    for(int i = 0; i < 4; i++){
+      if(eliminated[i] || i == agentIndex || !availableTargets[i]) continue;
+      for(int j = 0; j < 8; j++){
+        if(cardProb[i][j] >= prob && j + 1 >= highestCard) {
+          target = i;
+          highestCard = j + 1;
+        }
+      }
+    }
+    if(highestCard == 0 && !targetsAvailable()) target = (agentIndex + 1) % 4;
+    else if(highestCard == 0) for(int i = 0; i < 4; i++) if(availableTargets[i]) {
+      target = i;
+    }
+    return target;
   }
 
   public Action playCard(PseudoCard c){
     Action act = null;
     int target = getBestTarget(c);
-    while(!current.legalAction(act, c)){
-      try{
-        switch(c){
-          case GUARD:
-            act = Action.playGuard(agentIndex, target, Card.values()[rand.nextInt(7)+1]); // replace with known
-            break;
-          case PRIEST:
-            act = Action.playPriest(agentIndex, target);
-            break;
-          case BARON:  
-            act = Action.playBaron(agentIndex, target);
-            break;
-          case HANDMAID:
-            act = Action.playHandmaid(agentIndex);
-            break;
-          case PRINCE:  
-            act = Action.playPrince(agentIndex, target);
-            break;
-          case KING:
-            act = Action.playKing(agentIndex, target);
-            break;
-          case COUNTESS:
-            act = Action.playCountess(agentIndex);
-            break;
-          default:
-            act = null;//never play princess
-        }
-      }catch(IllegalActionException e){/*do nothing*/}
-    }
+    try{
+      switch(c){
+        case GUARD:
+          act = Action.playGuard(agentIndex, target, Card.values()[getBestGuardCard()-1]);
+          break;
+        case PRIEST:
+          act = Action.playPriest(agentIndex, target);
+          break;
+        case BARON:  
+          act = Action.playBaron(agentIndex, target);
+          break;
+        case HANDMAID:
+          act = Action.playHandmaid(agentIndex);
+          break;
+        case PRINCE:  
+          act = Action.playPrince(agentIndex, target);
+          break;
+        case KING:
+          act = Action.playKing(agentIndex, target);
+          break;
+        case COUNTESS:
+          act = Action.playCountess(agentIndex);
+          break;
+        case PRINCESS:
+          act = Action.playPrincess(agentIndex);
+          break;
+        default:
+          act = null;
+      }
+    }catch(IllegalActionException e){/*do nothing*/}
     return act;
   }
 
@@ -774,13 +973,13 @@ class PseudoAgent {
     Action act = null;
     PseudoCard play;
     while(!current.legalAction(act, c)){
-      if(rand.nextDouble() < 0.5) play = c;
+      if(random.nextDouble() < 0.5) play = c;
       else play = current.getCard(agentIndex);
-      int target = rand.nextInt(4);
+      int target = random.nextInt(4);
       try{
         switch(play){
           case GUARD:
-            act = Action.playGuard(agentIndex, target, Card.values()[rand.nextInt(7)+1]);
+            act = Action.playGuard(agentIndex, target, Card.values()[random.nextInt(7)+1]);
             break;
           case PRIEST:
             act = Action.playPriest(agentIndex, target);
@@ -807,13 +1006,7 @@ class PseudoAgent {
     }
     return act;
   }
-
-  // public Action playOptimal(PseudoCard c){
-
-  // }
 }
-
-enum PseudoCard {
 
 //             _____                 _ 
 //           / ____|               | |
@@ -823,6 +1016,8 @@ enum PseudoCard {
 //         \_____|\__,_||_|   \__,_|
 //
 //         Recycled from card class  
+
+enum PseudoCard {
 
   GUARD(1,"Guard",5),
   PRIEST(2,"Priest",2),
@@ -948,3 +1143,5 @@ enum PseudoCard {
     return convertedCard;
   }
 }
+
+// Congratulations for making it down here

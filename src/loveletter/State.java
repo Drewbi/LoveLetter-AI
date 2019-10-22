@@ -46,6 +46,7 @@ public class State implements Cloneable{
 
 
   public void displayState(){
+    System.out.println("player: " + player);
     System.out.println("discards: " + Arrays.deepToString(discards));
     System.out.println("discardCount: " + Arrays.toString(discardCount));
     System.out.println("hand: " + Arrays.toString(hand));
