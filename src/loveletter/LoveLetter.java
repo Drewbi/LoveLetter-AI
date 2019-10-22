@@ -94,7 +94,7 @@ System.out.println("New Round, scores are:\nplayer 0:"+gameState.score(0)+"\npla
   public static void main(String[] args){
     int totalGames = 1;
     int totalWins = 0;
-    Agent[] agents = {new GodV2(), new GodV1(), new RandomAgent(), new RandomAgent()};
+    Agent[] agents = {new GodV2(), new RandomAgent(), new RandomAgent(), new RandomAgent()};
     for(int i = 0; i<totalGames; i++){
       LoveLetter env = new LoveLetter();
       int[] results = env.playGame(agents);
