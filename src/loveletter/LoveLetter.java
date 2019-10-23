@@ -92,16 +92,28 @@ System.out.println("New Round, scores are:\nplayer 0:"+gameState.score(0)+"\npla
    * The agent implementations should be in the default package.
    * */
   public static void main(String[] args){
-    int totalGames = 1;
-    int totalWins = 0;
-    Agent[] agents = {new GodV2(), new RandomAgent(), new RandomAgent(), new RandomAgent()};
+    int totalGames = 100;
+    int totalWins0 = 0;
+    int totalWins1 = 0;
+    int totalWins2 = 0;
+    int totalWins3 = 0;
+    Agent[] agents = {new GodV2(), new RandomAgent(), new RandomAgent(), new GodV1()};
     for(int i = 0; i<totalGames; i++){
       LoveLetter env = new LoveLetter();
       int[] results = env.playGame(agents);
-      if(results[0] == 4) totalWins++;
+      if(results[0] == 4) totalWins0++;
+      if(results[1] == 4) totalWins1++;
+      if(results[2] == 4) totalWins2++;
+      if(results[3] == 4) totalWins3++;
     }
-    System.out.println("Total wins for " + agents[0] + " are " + totalWins);
-    System.out.println(agents[0] + " wins " + ((double) totalWins / (double) totalGames) * 100 + "% of the time");
+    System.out.println("Total wins for " + agents[0] + " are " + totalWins0);
+    System.out.println(agents[0] + " wins " + ((double) totalWins0 / (double) totalGames) * 100 + "% of the time");
+    System.out.println("Total wins for " + agents[1] + " are " + totalWins1);
+    System.out.println(agents[1] + " wins " + ((double) totalWins1 / (double) totalGames) * 100 + "% of the time");
+    System.out.println("Total wins for " + agents[2] + " are " + totalWins2);
+    System.out.println(agents[2] + " wins " + ((double) totalWins2 / (double) totalGames) * 100 + "% of the time");
+    System.out.println("Total wins for " + agents[3] + " are " + totalWins3);
+    System.out.println(agents[3] + " wins " + ((double) totalWins3 / (double) totalGames) * 100 + "% of the time");
   //   env.ps.print("The final scores are:\n");
   //   for(int i= 0; i<agents.length; i++)
   //     env.ps.print("\t Agent "+i+", \""+agents[i]+"\":\t "+results[i]+"\n");

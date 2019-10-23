@@ -31,17 +31,30 @@ public class GodV2 implements Agent{
   }
 
   public Action playCard(Card c){
-    MCTS monte;
     Action act;
+    System.out.println("Hand is " + c + " and " + current.getCard(myIndex));
+    if(c == Card.COUNTESS && (current.getCard(myIndex) == Card.KING || current.getCard(myIndex) == Card.PRINCE)){
+      try {
+        act = Action.playCountess(myIndex);
+        return act;
+      } catch (IllegalActionException e){
+        System.out.println(e);
+      }
+    } else if(current.getCard(myIndex) == Card.COUNTESS  && (c == Card.KING || c == Card.PRINCE)){
+      try {
+        act = Action.playCountess(myIndex);
+        return act;
+      } catch (IllegalActionException e){
+        System.out.println(e);
+      }
+    }
+    MCTS monte;
     try {
-      monte = new MCTS(10, 1000, 200, current, c, myIndex);
+      monte = new MCTS(6, 10000, 0.3, current, c, myIndex);
       MCTSNode bestNode = monte.ISMCTS();
-      System.out.println(bestNode.getTries());
-      System.out.println(bestNode.getWins());
-      System.out.println(bestNode.getAction());
       act = bestNode.getAction();
     } catch(IllegalActionException e){
-      System.out.println("Something went very wrong, oh no..." + e);
+      System.out.println("Move failed " + e);
       RandomAgent randSub = new RandomAgent();
       randSub.newRound(current);
       act = randSub.playCard(c); // I subsitute actions for you
@@ -104,6 +117,8 @@ class MCTSNode {
   public int getDepth(){return depth;}
 
   public void seen(){ availablility++;}
+  
+  public MCTSNode[] getChildren(){ return children;}
 
   // Creates a child node by cloning a state and using it to generate a node one level down
   public MCTSNode createChild(Action act, int maxDepth) throws IllegalActionException {
@@ -120,7 +135,7 @@ class MCTSNode {
   }
 
   public MCTSNode getChild(int cardVal){
-    return children[cardVal - 1];
+  return children[cardVal - 1];
   }
 
   // Potential method for simulating multiple playouts for potentially better 
@@ -148,6 +163,7 @@ class MCTSNode {
     if(current.parent != null){
       current.backProp(win);
     }
+
   }
 }
 
@@ -171,21 +187,16 @@ class MCTS {
 
   // Runs the Information set monte carlo tree search
   public MCTSNode ISMCTS() throws IllegalActionException {
-    System.out.println("ISMCTS starting timer");
     int numIterations = 0;
     while (numIterations < maxIterations){
       MCTSNode selectedNode;
       try {
-        System.out.println("ISMCTS Selecting node");
         selectedNode = select();
       } catch (IllegalActionException e) {
         throw e;
       }
-      System.out.println("ISMCTS selected node successfully:");
       int win = selectedNode.simulate(playerIndex);
-      System.out.println("ISMCTS node resulted in " + win + " wins");
       selectedNode.backProp(win);
-      System.out.println("ISMCTS Node has backpropagated");
       numIterations++;
     }
     int maxTries = 0;
@@ -197,7 +208,6 @@ class MCTS {
           maxTries = childTries;
           bestChild = i;
         }
-        System.out.println("Child " + i + " tried " + childTries);
       }
     }
     if(bestChild == -1) System.out.println("No child found");
@@ -206,8 +216,6 @@ class MCTS {
 
   // Works down the tree based on the principles of the monte carlo tree search
   private MCTSNode select() throws IllegalActionException {
-    System.out.println("Select: starting selection");
-    System.out.println("Current leaf at depth " + root.getDepth() + " and player to move " + root.getDeterm().nextPlayer());
     MCTSNode current = root;
     while (!current.isLeaf()){
       PseudoState currentDeterm = current.getDeterm().cloneState();
@@ -230,7 +238,7 @@ class MCTS {
 
       Action act1 = currentPlayer.playCard(playFirst);
       Action act2 = currentPlayer.playCard(playSecond);
-      System.out.println(act1 + "|" + act2);
+
       if(act1 == null & act2 == null) throw new IllegalActionException("Both actions are illegal: " + act1 + "|" + act2);
       if(act1 != null && !current.hasChild(act1.card().value())){
         try {
@@ -262,14 +270,17 @@ class MCTS {
 
   // Choose nodes based on the ISUCT algorithm
   private MCTSNode pickISUCT(MCTSNode node1, MCTSNode node2){
-    double node1Score = ISUCT(node1.getWins(), node1.getTries(), node1.getAvailable());
-    double node2Score = ISUCT(node2.getWins(), node2.getTries(), node2.getAvailable());
+    double node1Score = ISUCT(node1.getWins(), node1.getTries(), node1.getParent().getAvailable(), node1.getAvailable());
+    double node2Score = ISUCT(node2.getWins(), node2.getTries(), node2.getParent().getAvailable(), node2.getAvailable());
     return node1Score > node2Score ? node1 : node2;
   }
 
   // Actual ISUCT formula
-  private double ISUCT(int wins, int tries, int avail){
-    return ((double) wins / (double) tries) + (expConst * Math.sqrt(((2 * Math.log((double) avail)) / (double) avail)));
+  private double ISUCT(int wins, int tries, int parentAvail, int avail){
+    if(tries == 0) tries++;
+    double winloss = (double)wins / (double)tries;
+    if(avail == 0) avail++;
+    return (winloss + (expConst * Math.sqrt(((2 * Math.log((double) parentAvail)) / (double) tries))));
   }
 
 
@@ -455,7 +466,6 @@ class PseudoState implements Cloneable{
       legalAction(act.player(), act.target(), PseudoCard.convertToPseudoCard(act.card()), drawn);
     }
     catch(IllegalActionException e){
-      System.out.println(e);
       return false;
     }
     return true;
@@ -713,7 +723,6 @@ class PseudoAgent {
   private int agentIndex;
   private boolean[] availableTargets;
   private double[][] cardProb;
-  private boolean[] eliminated;
   private int[] unseenCards;
 
   public PseudoAgent(){
@@ -721,7 +730,6 @@ class PseudoAgent {
     availableTargets = new boolean[4];
     cardProb = new double[4][8];
     unseenCards = new int[]{5, 2, 2, 2, 2, 1, 1, 1};
-    eliminated = new boolean[4];
     updateProbabilities();
   }
 
@@ -736,14 +744,12 @@ class PseudoAgent {
     current = start;
     agentIndex = current.getPlayerIndex();
     updateKnown();
-    updateEliminated();
     getAvailableTargets();
   }
 
   public void see(Action act, PseudoState results){
     current = results;
     updateKnown();
-    updateEliminated();
     getAvailableTargets();
   }
 
@@ -772,16 +778,6 @@ class PseudoAgent {
     }
   }
 
-  private void updateEliminated(){
-    for(int i = 0; i < 4; i++){
-      if(i == agentIndex) continue;
-      if(current.eliminated(i)){
-        for(int j = 0; j < 8; j++) cardProb[i][j] = 0.0;
-        eliminated[i] = true;
-      }
-    }
-  }
-
   private void getAvailableTargets(){
     for(int i = 0; i < 4; i++){
       if(i == agentIndex || current.eliminated(i) || current.handmaid(i)) availableTargets[i] = false;
@@ -799,7 +795,64 @@ class PseudoAgent {
     else return d;
   }
 
-  public int getBestTarget(PseudoCard c){
+  public int getRandomTarget(PseudoCard c){
+    int target;
+    switch(c){
+      case GUARD:
+        target = getTarget();
+        break;
+      case PRIEST:
+        target = getTarget();
+        break;
+      case BARON:  
+        target = getTarget();
+        break;
+      case PRINCE:  
+        target = getRandomPrinceTarget();
+        break;
+      case KING:
+        target = getTarget();
+        break;
+      default:
+        target = -1; // Princess, Handmaid and Countess don't target
+    }
+    return target;
+  }
+
+  private int getTarget(){
+    getAvailableTargets();
+    
+    // Try and find someone available
+    for(int i = 0; i < 4; i++) {
+      if(availableTargets[i]) return i;
+    }
+    // If not try and find someone not eliminated
+    for(int i = 0; i < 4; i++){
+      if(i == agentIndex) continue;
+      if(!current.eliminated(i)) return i;
+    }
+    System.out.println("Get target has failed");
+    return agentIndex;
+  }
+
+  private int getRandomPrinceTarget(){
+    Random rand = new Random();
+    int i = rand.nextInt(3);
+    int j = agentIndex;
+    while(i >= 0){
+      for(int k = 0; k < 4; k++){
+        if(availableTargets[k]){
+          j = k;
+          i--;
+        }
+        if(i == 0) break;
+      }
+      i--;
+    }
+    return j;
+  }
+
+  public int getBestTarget(PseudoCard c, PseudoCard otherCard){
     int target;
     switch(c){
       case GUARD:
@@ -809,16 +862,16 @@ class PseudoAgent {
         target = getBestPriestTarget();
         break;
       case BARON:  
-        target = getBestBaronTarget(c.value());
+        target = getBestBaronTarget(otherCard.value());
         break;
       case PRINCE:  
         target = getBestPrinceTarget();
         break;
       case KING:
-        target = getBestKingTarget(c.value());
+        target = getBestKingTarget(otherCard.value());
         break;
       default:
-        target = 0; // Princess, Handmaid and Countess don't target
+        target = -1; // Princess, Handmaid and Countess don't target
     }
     return target;
   }
@@ -835,8 +888,8 @@ class PseudoAgent {
     int[] guess = new int[2];
     double prob = 0;
     for(int i = 0; i < 4; i++){
-      if(eliminated[i] || i == agentIndex || !availableTargets[i]) continue;
-      for(int j = 0; j < 8; j++){
+      if(!availableTargets[i]) continue;
+      for(int j = 1; j < 8; j++){
         if(cardProb[i][j] >= prob) {
           prob = cardProb[i][j];
           guess[0] = i;
@@ -844,10 +897,13 @@ class PseudoAgent {
         }
       }
     }
-    if(prob == 0 && !targetsAvailable()) guess[0] = (agentIndex + 1) % 4;
+    if(prob == 0 && !targetsAvailable()) {
+      guess[0] = (agentIndex + 1) % 4;
+      guess[1] = 8;
+    }
     else if(prob == 0) for(int i = 0; i < 4; i++) if(availableTargets[i]) {
       guess[0] = i;
-      guess[1] = 2;
+      guess[1] = 8;
     }
     return guess;
   }
@@ -856,10 +912,13 @@ class PseudoAgent {
     int target = (agentIndex + 1) % 4;
     double prob = 1;
     for(int i = 0; i < 4; i++){
-      if(eliminated[i] || i == agentIndex || !availableTargets[i]) continue;
+      if(!availableTargets[i]) continue;
       for(int j = 0; j < 8; j++){
         if(cardProb[i][j] == 0) continue;
-        else if(cardProb[i][j] <= prob) target = i;
+        else if(cardProb[i][j] <= prob) {
+          target = i;
+          prob = cardProb[i][j];
+        }
       }
     }
     if(prob == 1 && !targetsAvailable()) target = (agentIndex + 1) % 4;
@@ -871,14 +930,15 @@ class PseudoAgent {
 
   private int getBestBaronTarget(int cardVal){
     int target = (agentIndex + 1) % 4;
-    double prob = 0.6;
+    double prob = 0.3;
     int lowestCard = 9;
     for(int i = 0; i < 4; i++){
-      if(eliminated[i] || i == agentIndex || !availableTargets[i]) continue;
+      if(!availableTargets[i]) continue;
       for(int j = 0; j < 8; j++){
         if(cardProb[i][j] >= prob && j + 1 <= lowestCard) {
           target = i;
           lowestCard = j + 1;
+          prob = cardProb[i][j];
         }
         else if(cardProb[i][j] == 1 && j + 1 < cardVal) {
           target = i;
@@ -898,11 +958,12 @@ class PseudoAgent {
     double prob = 0;
     int highestCard = 0;
     for(int i = 0; i < 4; i++){
-      if(eliminated[i] || i == agentIndex || !availableTargets[i]) continue;
+      if(!availableTargets[i]) continue;
       for(int j = 0; j < 8; j++){
         if(cardProb[i][j] >= prob && j + 1 >= highestCard) {
           target = i;
           highestCard = j + 1;
+          prob = cardProb[i][j];
         }
       }
     }
@@ -918,11 +979,12 @@ class PseudoAgent {
     double prob = 0.6;
     int highestCard = 0;
     for(int i = 0; i < 4; i++){
-      if(eliminated[i] || i == agentIndex || !availableTargets[i]) continue;
+      if(!availableTargets[i]) continue;
       for(int j = 0; j < 8; j++){
         if(cardProb[i][j] >= prob && j + 1 >= highestCard) {
           target = i;
           highestCard = j + 1;
+          prob = cardProb[i][j];
         }
       }
     }
@@ -934,12 +996,18 @@ class PseudoAgent {
   }
 
   public Action playCard(PseudoCard c){
+    Random rand = new Random();
     Action act = null;
-    int target = getBestTarget(c);
+    PseudoCard otherCard = current.getCard(agentIndex);
+    updateKnown();
+    getAvailableTargets();
+    int target = getBestTarget(c, otherCard);
+    // int target = getRandomTarget(c);
     try{
       switch(c){
         case GUARD:
           act = Action.playGuard(agentIndex, target, Card.values()[getBestGuardCard()-1]);
+          // act = Action.playGuard(agentIndex, target, Card.values()[rand.nextInt(7)+1]);
           break;
         case PRIEST:
           act = Action.playPriest(agentIndex, target);
@@ -965,6 +1033,7 @@ class PseudoAgent {
         default:
           act = null;
       }
+      if(act == null) throw new IllegalActionException("No legal action found");
     }catch(IllegalActionException e){/*do nothing*/}
     return act;
   }
