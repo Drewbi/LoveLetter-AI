@@ -92,12 +92,12 @@ System.out.println("New Round, scores are:\nplayer 0:"+gameState.score(0)+"\npla
    * The agent implementations should be in the default package.
    * */
   public static void main(String[] args){
-    int totalGames = 100;
+    int totalGames = 10;
     int totalWins0 = 0;
     int totalWins1 = 0;
     int totalWins2 = 0;
     int totalWins3 = 0;
-    Agent[] agents = {new GodV2(), new RandomAgent(), new RandomAgent(), new GodV1()};
+    Agent[] agents = {new GodV2(), new RandomAgent(), new RandomAgent(), new RandomAgent()};
     for(int i = 0; i<totalGames; i++){
       LoveLetter env = new LoveLetter();
       int[] results = env.playGame(agents);

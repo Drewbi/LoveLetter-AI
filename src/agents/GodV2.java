@@ -50,7 +50,7 @@ public class GodV2 implements Agent{
     }
     MCTS monte;
     try {
-      monte = new MCTS(6, 10000, 0.3, current, c, myIndex);
+      monte = new MCTS(12, 1000000, 0.3, current, c, myIndex);
       MCTSNode bestNode = monte.ISMCTS();
       act = bestNode.getAction();
     } catch(IllegalActionException e){
@@ -198,6 +198,7 @@ class MCTS {
       int win = selectedNode.simulate(playerIndex);
       selectedNode.backProp(win);
       numIterations++;
+      if(numIterations % 100000 == 0) System.out.println("Iteration: " + numIterations);
     }
     int maxTries = 0;
     int bestChild = -1;
