@@ -24,6 +24,7 @@ public class GodV2 implements Agent{
   public void newRound(State start){
     current = start;
     myIndex = current.getPlayerIndex();
+    if(myIndex != 0) System.out.println("Please put ∆GodV2∆ at position 0 please please please");
   }
 
   public void see(Action act, State results){
@@ -32,7 +33,7 @@ public class GodV2 implements Agent{
 
   public Action playCard(Card c){
     Action act;
-    System.out.println("Hand is " + c + " and " + current.getCard(myIndex));
+    // System.out.println("Hand is " + c + " and " + current.getCard(myIndex));
     if(c == Card.COUNTESS && (current.getCard(myIndex) == Card.KING || current.getCard(myIndex) == Card.PRINCE)){
       try {
         act = Action.playCountess(myIndex);
@@ -47,19 +48,21 @@ public class GodV2 implements Agent{
       } catch (IllegalActionException e){
         System.out.println(e);
       }
+    } else {
+      MCTS monte;
+      try {
+        monte = new MCTS(4, 1000000, 0.3, current, c, myIndex);
+        MCTSNode bestNode = monte.ISMCTS();
+        act = bestNode.getAction();
+      } catch(IllegalActionException e){
+        System.out.println("Move failed " + e);
+        RandomAgent randSub = new RandomAgent();
+        randSub.newRound(current);
+        act = randSub.playCard(c); // I subsitute actions for you
+      }
+      return act;
     }
-    MCTS monte;
-    try {
-      monte = new MCTS(12, 1000000, 0.3, current, c, myIndex);
-      MCTSNode bestNode = monte.ISMCTS();
-      act = bestNode.getAction();
-    } catch(IllegalActionException e){
-      System.out.println("Move failed " + e);
-      RandomAgent randSub = new RandomAgent();
-      randSub.newRound(current);
-      act = randSub.playCard(c); // I subsitute actions for you
-    }
-    return act;
+    return null;
   }
 }
 
@@ -198,7 +201,7 @@ class MCTS {
       int win = selectedNode.simulate(playerIndex);
       selectedNode.backProp(win);
       numIterations++;
-      if(numIterations % 100000 == 0) System.out.println("Iteration: " + numIterations);
+      if(numIterations % 100000 == 0) System.out.println("∆GodV2∆'s move is Loading: " + numIterations/10000 + "%");
     }
     int maxTries = 0;
     int bestChild = -1;
